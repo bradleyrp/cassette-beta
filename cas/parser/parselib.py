@@ -411,7 +411,8 @@ class TexDocument:
 		#---render HTML if desired
 		if self.specs.spec('images'):
 			self.image_location = os.path.join(self.specs.spec('images'),'')
-		self.html_output = self.specs.bool('html')
+		#---! removed the option otherwise make always makes: self.html_output = self.specs.bool('html')
+		self.html_output = True
 		if self.html_output: 
 			self.direct_html()
 			self.proc(version='html')
