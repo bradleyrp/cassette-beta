@@ -691,7 +691,7 @@ class TexDocument:
 					for figlabel in re.findall('@fig:(%s+)'%self.labelchars,specific_parts[key][ll]):
 						if re.search('@fig:%s([%s])'%(figlabel,self.spacing_chars),
 							specific_parts[key][ll]):
-							try: num = zip(*self.images)[0].index(figlabel)
+							try: num = list(zip(*self.images))[0].index(figlabel)
 							except: raise Exception('[ERROR] could not find "%s" in imagelist'%figlabel)
 							specific_parts[key][ll] = re.sub('@fig:%s([%s])'%(
 								figlabel,self.spacing_chars),
