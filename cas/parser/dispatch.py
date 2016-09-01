@@ -80,7 +80,7 @@ if 'gallery' in todo and todo['gallery']:
 						'categories':[re.findall('^(?:fig\.)?([^\.]+)\.',os.path.basename(fn))[0]],
 						'content':name_to_descriptor(os.path.basename(fn))}
 			else: print('[STATUS] skipping %s'%fn)
-		tmpfn.write(str.encode(maps))
+		tmpfn.write(str.encode(str(maps)))
 		tmpfn.close()
 		os.system(tiler_code+' '+tmpfn.name)
 
