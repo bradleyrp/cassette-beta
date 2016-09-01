@@ -9,7 +9,7 @@ export TEXINPUTS := .:./cas/sources/extras/:$(TEXINPUTS)
 #---extra arguments passed along to downstream functions and scripts
 RUN_ARGS := $(wordlist 1,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 #---ensure that we filter out all valid target names from RUN_ARGS
-COMMENTS := $(filter-out all banner save push pull add start stop clean silo dispatch init dev,$(RUN_ARGS))
+COMMENTS := $(filter-out all banner save add clean silo dispatch init dev clone,$(RUN_ARGS))
 #---evaluate all superfluous make arguments to suppress warnings that contain these arguments
 $(eval $(COMMENTS):;@:)
 
@@ -107,6 +107,14 @@ ifeq ($(wildcard $(siloname)/),)
 	@git add .gitignore
 	@git commit --allow-empty -m 'added gitignore'
 endif
+
+#---clone an upstream data repository (works on git before and after 2.9)
+clone:
+	@test ! -d .git || (echo "[ERROR] can only clone if .git is absent"; exit 1;)
+	git clone $(upstream) cas/incoming || (echo "[STATUS] fail"; exit 1;)
+	mv cas/incoming/.git . || (echo "[STATUS] fail"; exit 1;)
+	rm -rf cas/incoming || (echo "[STATUS] fail"; exit 1;)
+	git reset --hard || (echo "[STATUS] fail"; exit 1;)
 
 ###---VERSIONING
 
