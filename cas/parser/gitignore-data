@@ -1,0 +1,8 @@
+#---gitignore for the data repository for cassette
+/history
+/images
+/printed
+/makefile
+/*.html
+/cas
+/.gitcas

@@ -1,0 +1,27 @@
+a { color: #666699; text-decoration: none; }
+
+html, body {
+margin: 0;
+padding: 0;
+}
+.layout {
+padding: 15px;
+}
+.free-wall {
+}
+.filter-items {
+padding: 10px 0px;
+text-align: center;
+}
+.filter-label {
+display: inline-block;
+margin: 0px 5px 5px 0px;
+padding: 10px;
+cursor: pointer;
+background: white;
+}
+.filter-label.active,
+.filter-label:hover {
+background: #666699;
+color: white;
+}
