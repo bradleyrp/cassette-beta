@@ -97,14 +97,13 @@ for key in pulls:
 	val = dis[key]
 	#---! change to subprocess, check file name redundancy if one "down" folder
 	#---check hostnames
-	regex_host = '^(?:[a-z]+@?)(.+):(.+)$'
+	regex_host = '^(?:(.+):)?(.+)$'
 	from_host = re.match(regex_host,val['from']).group(1)
 	try: hostname = os.environ['HOSTNAME']
 	except: 
 		import socket
 		hostname = socket.gethostname()
-	#if upstream and from_host!=upstream: continue
-	if re.search(from_host,hostname):
+	if from_host and re.search(from_host,hostname):
 		sourcepath = re.match(regex_host,val['from']).group(2)
 	else: sourcepath = val['from']
 	if 'files' not in val: 
