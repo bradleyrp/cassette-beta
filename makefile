@@ -25,9 +25,11 @@ latex_engine = pdflatex
 .PHONY: all banner save push pull add start stop
 all: init silo $(OBJ_MD_HTML) indexer
 
-#---only dispatch upon request
+#---only dispatch upon request (always index afterwards)
 dispatch:
 	@python ./cas/parser/dispatch.py ${RUN_ARGS} ${MAKEFLAGS}
+	@python ./cas/parser/indexer.py
+	@/bin/echo "[INDEX] file:///$(shell pwd)/index.html"
 
 #---draw an index HTML
 indexer:

@@ -23,32 +23,6 @@ for key in arglist: todo[key] = key in sys.argv
 #---do something
 if not any(todo.values()): raise Exception('[ERROR] nothing to dispatch')
 
-###---FUNCTIONS
-
-def name_to_descriptor(fn):
-
-	"""
-	Extract useful information from a figure name.
-	"""
-
-	regex_version = '\.(v[0-9]+)\.[a-z]+$'
-	regex_base = '^(?:fig\.)?(.+)\.?v?[0-9]*\.[a-z]+$'
-	regex_floats = '\.([a-z]+\.[0-9]+\.[0-9]+)'
-	descriptors = []
-	if re.search(regex_version,fn): 
-		version = re.findall(regex_version,fn)[0]
-		descriptors.append(version)
-		fn = re.sub('\.'+version,'',fn)
-	#---get the base name
-	base = re.findall(regex_base,fn)[0]
-	#---get any floats
-	if re.search(regex_floats,fn):
-		floats = re.findall(regex_floats,base)
-		descriptors.extend(floats)
-		for f in floats: base = re.sub(re.escape('.'+f),'',base)
-	descriptors.extend(base.split('.'))
-	return '<br>'+'<br>'.join(descriptors)
-
 ###---MAIN
 
 #---zip a particular article
@@ -64,22 +38,17 @@ if todo['zipper']:
 
 #---make image galleries
 if 'gallery' in todo and todo['gallery']:
+	#---loop over image links in the dispatch.yaml file and make a tiler for each
 	for key in [key for key in dis.keys() if 'type' in dis[key] and dis[key]['type']=='image-link']:
 		val = dis[key]
 		tmpfn = tempfile.NamedTemporaryFile(delete=False)
-		maps = {'path':
-			{'dropdir':os.getcwd(),'dropfile':'tile-%s.html'%key,'tile-files':'cas/sources/tiler/'}}
-		fn_break = '^(.+)\.([^\.]+)$'
-		cwd = os.path.expanduser(val['location'])
-		for fn in glob.glob('%s/*'%cwd):
-			if re.match(fn_break,fn):
-				name,suf = re.findall(fn_break,os.path.basename(fn))[0]
-				if suf in ['png','gif','jpeg','jpg']:
-					maps[name] = {'name':re.sub('_',' ',re.findall('^(?:fig\.)?([^\.]+)',name)[0]),
-						'type':'image','path':fn,
-						'categories':[re.findall('^(?:fig\.)?([^\.]+)\.',os.path.basename(fn))[0]],
-						'content':name_to_descriptor(os.path.basename(fn))}
-			else: print('[STATUS] skipping %s'%fn)
+		maps = {'path':{
+			'dropdir':os.getcwd(),
+			'dropfile':'tile-%s.html'%key,
+			'tile-files':'cas/sources/tiler/',
+			'thumb-files':'cas/hold/thumbs-%s/'%key,
+			'images':val['location'],
+			}}
 		tmpfn.write(str.encode(str(maps)))
 		tmpfn.close()
 		os.system(tiler_code+' '+tmpfn.name)
