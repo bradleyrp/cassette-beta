@@ -173,7 +173,7 @@ class TexDocument:
 	section_prefix = r"\renewcommand{\thesection}{%s\arabic{section}}"
 	figure_prefix = r"\renewcommand{\thefigure}{%s\arabic{figure}}"
 	table_prefix = r"\renewcommand{\thetable}{%s\arabic{table}}"
-	figure_regex = '!figure:\s*(?:([^\n]+))\n([^\n]+)\s(.*?)(?<=\n\n)'
+	figure_regex = '!figure:\s*(?:([^\n]+))\n([^\n]+)\s(.*?)(?=\n\n|\Z)'
 	regex_block_comment = r"(?:[:]{3})\s*\n(.*?)\n\s*(?:[:]{3})\s*\n"
 	regex_line_comment = r"^[:]{3,}\s*[^\s]+(.+)"
 	regex_equation = r"^\$\$\s*$(.*?)\n\$\$\s*(?:\{#eq:([^\}]+)\})?"
@@ -339,7 +339,7 @@ class TexDocument:
 		self.subs_tex.update(**{'@eq:(%s+)'%self.labelchars:
 			self.eqnstyle%(r"\\ref{eq:\1}")})
 		self.subs_html.update(**{'@sec:(%s+)'%self.labelchars:
-			'<a href="#%s">%s</a>'%(r"\1",self.secstyle%(self.secpref+r"N")),
+			'<a href="#%s">%s</a>'%(r"\1",self.secstyle%(self.secpref+r"\1")),
 			'@(eq:%s+)'%self.labelchars:self.eqnstyle%r"$\eqref{\1}$"})
 		self.bibfile = self.specs.spec('bibliography')
 		self.write_equation_images = self.specs.bool('write_equation_images')
@@ -413,6 +413,7 @@ class TexDocument:
 			self.image_location = os.path.join(self.specs.spec('images'),'')
 		#---! removed the option otherwise make always makes: self.html_output = self.specs.bool('html')
 		self.html_output = True
+		self.html_template = self.specs.spec('html_template','header.html')
 		if self.html_output: 
 			self.direct_html()
 			self.proc(version='html')
@@ -495,7 +496,7 @@ class TexDocument:
 
 		#---while the direct function for latex infers sections from comments we hard-code them for html
 		self.parts = {}
-		with open('./cas/sources/header.html','r') as fp: self.html_header = fp.readlines()
+		with open('./cas/sources/%s'%self.html_template,'r') as fp: self.html_header = fp.readlines()
 		#---replace title in html header
 		for ll,l in enumerate(self.html_header):
 			if re.search('@TITLE',l) != None: 
@@ -787,7 +788,7 @@ class TexDocument:
 			local_bibfile = os.path.basename(self.bibfile)
 			shutil.copyfile(self.bibfile,os.path.join(dn,local_bibfile))
 			self.parts['bbl'] = "\\bibliography{%s}\n"%local_bibfile
-		else: self.parts['bbl'] = '%---no bibfile\n'
+		else: self.parts['bbl'] = '\n'
 
 		#---required for multiple bibliographies if compiling chapters
 		if nocompile: 
