@@ -15,30 +15,23 @@ def write_tex_png(formula,name,count,label=None,vectorbold=False):
 
 	"""
 	Convert a TeX equation to PNG.
-	!NEEDS details
+	Take a formula and write an equation based on the document name and an optional label. 
+	We also receive the count in case uses wish to put it in the filename.
 	"""
 
-	#---! note the linewidth below might be too small for ridiculous equations
+	#---specify the template for a standalone equation
+	#---note the linewidth below might be too small for lengthy equations
 	template_tex_png = '\n'.join([r"",r"\documentclass[border=2pt]{standalone}",r"\usepackage{varwidth}",
 		r"\usepackage{amsmath}",r"%s",r"\begin{document}",r"\begin{varwidth}{\linewidth}",
 		r"\begin{equation*}","%s",r"\end{equation*}",r"\end{varwidth}",r"\end{document}"])
 	tmpdir = tempfile.mkdtemp()
 	outtex = (template_tex_png%('' if not vectorbold 
 		else TexDocument.vector_bold_command,formula.strip('., '))).split('\n')
-	if False:
-		if any([re.search('begin.+split',i) for i in outtex]):
-			print('[WARNING] angrily refusing to render equation %d (in total numbering) in %s '+
-				'because it contains a split environment')%(count+1,name)
-			return
 	for ll,line in enumerate(outtex):
 		if re.match(r'^\\label',line): outtex[ll] = ''
-		if False:
-			if re.match(r'^\\begin\{eq',line): outtex[ll] = r'\begin{equation*}'
-			if re.match(r'^\\end\{eq',line): outtex[ll] = r'\end{equation*}'
 	print_tex = [i for i in outtex if not re.match('^\s*$',i)]
 	with open('%s/snaptex2.tex'%tmpdir,'w') as fp: fp.write('\n'.join(print_tex))
 	os.system('pdflatex --output-directory=%s %s/snaptex2.tex'%(tmpdir,tmpdir))
-	#---previously used count+1 instead of the basename of the tmpdir
 	os.system('convert -trim -density 300 '+
 		'%s/snaptex2.pdf -quality 100 printed/%s-%s.png'%(tmpdir,name,
 			os.path.basename(tmpdir) if not label else label))
@@ -47,7 +40,7 @@ def linesnip(lines,*regex,**kwargs):
 
 	"""
 	Custom function for choosing sections of the markdown file for specific processing rules.
-	!NEEDS fixed and tested details
+	!DEVNOTE: 
 	"""
 
 	is_header = kwargs.get('is_header',True)
@@ -100,8 +93,10 @@ class MDHeaderText:
 			elif re.match('(False|false|no|N|n)',val): self.core[key] = False
 	
 		#---regex defns
+		#---specify the formats for different items in the header block
 		regex_header_parse = [
 			('regex_header_block',(r"^>([ \w\@]+)\s*:\s*\n?$(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
+			('regex_header_yaml',(r"^(~.*?)\s*:\s*\n(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
 			('regex_header_single',(r"^([ \w\@]+):\s*(.*?)\s*$",re.M)),
 			]
 
@@ -111,9 +106,15 @@ class MDHeaderText:
 		self.header = self.header.strip('\n-').strip()
 		if self.header: raise Exception('unprocessed header items: "%s"'%self.header)
 
+		#---post-process any tilde-prefixed keys as yaml
+		#---development note: it would be better to have a custom decorator so that each regex
+		#---...header style could have its own processing function like this one
+		for key in [i for i in self.core.keys() if re.match('^~',i)]:
+			self.core[re.sub('^~','',key)] = yaml.load(self.core.pop(key))
+
 		#---clean the header items
 		for key in [i for i in self.core if i!='body']:
-			if type(self.core[key])!=bool:
+			if type(self.core[key]) not in [bool,dict]:
 				#---remove trailing whitespace
 				self.core[key] = self.core[key].strip('\n')
 				#---collapse newline, newline-tab, and newline-space into spaces only
@@ -218,6 +219,8 @@ class TexDocument:
 		(r"@chap:(%s+)"%labelchars,r"\\ref{chap:\1}"),
 		#---or inline pygments/minted: ('`([^`]+)`\s\<(.+)\>',r"\mintinline{\2}{\1}",)
 		(r"\#",r"\\#"),
+		#---switch between TeX/HTML
+		(r"~(.*?)\|(.*?)~",r"\1"),
 		])
 
 	#---multiline regex substitutions or replacements for LaTeX
@@ -232,26 +235,27 @@ class TexDocument:
 
 	#---? figure will not be capitalized sometimes
 	#---? double asterisk may not work if dictionary in wrong order
-	subs_html = {
-		r" \\\\ ":'',
-		'\*\*([^\*]+)\*\*':r'<strong>\1</strong>',
-		'\*([^\*]+)\*':r'<em>\1</em>',
-		'\[\[([^\]]+)\]\]':r"""<span style="background-color: #FFFF00">\1</span>""",
-		'\<\<([^\>]+)\>\>':r"""<span style="background-color: #F0F8FF; color: #F4C2C2">\1</span>""",
-		regex_inline_comment:r"",
-		regex_line_comment:r"",
-		'\$([^\$]+)\$':r"$\mathrm{\1}$",
-		"\\\pdfmarkupcomment\\[markup=[A-Za-z]+,color=[A-Za-z]+\\]\{([^\}]+)\}\{[^\}]*\}":
-			r"""<span style="background-color: #FFFF00">\1</span>""",
-		'(?:``)([^\']+)(?:\'\')':r"&#8220;\1&#8221;",
-		'`([^`]+)`':r"<code>\1</code>",
-		'\[([^\]]+)\]\(([^\)]+)\)':r'<a href="\2">\1</a>',
-		'^>\s*(.+)':r"<blockquote>\1</blockquote>",
+	subs_html = odict([
+		(r" \\\\ ",''),
+		('\*\*([^\*]+)\*\*',r'<strong>\1</strong>'),
+		('\*([^\*]+)\*',r'<em>\1</em>'),
+		('\[\[([^\]]+)\]\]',r"""<span style="background-color: #FFFF00">\1</span>"""),
+		('\<\<([^\>]+)\>\>',r"""<span style="background-color: #F0F8FF; color: #F4C2C2">\1</span>"""),
+		(regex_inline_comment,r""),
+		(regex_line_comment,r""),
+		('\$([^\$]+)\$',r"$\mathrm{\1}$"),
+		("\\\pdfmarkupcomment\\[markup=[A-Za-z]+,color=[A-Za-z]+\\]\{([^\}]+)\}\{[^\}]*\}",
+			r"""<span style="background-color: #FFFF00">\1</span>"""),
+		('(?:``)([^\']+)(?:\'\')',r"&#8220;\1&#8221;"),
+		('`([^`]+)`',r"<code>\1</code>"),
+		('\[([^\]]+)\]\(([^\)]+)\)',r'<a href="\2">\1</a>'),
+		('^>\s*(.+)',r"<blockquote>\1</blockquote>"),
 		#---had to remove the following for python3
 		# '\\\AA':'\unicode{x212B}',
-		r"@chap:(%s+)"%labelchars:r'<a href="\1.html">N</a>',
-		r"\\vspace\{([^\}]+)\}":"",
-		}
+		(r"@chap:(%s+)"%labelchars,r'<a href="\1.html">N</a>'),
+		(r"\\vspace\{([^\}]+)\}",""),
+		(r"~(.*?)\|(.*?)~",r"\2"),
+		])
 
 	subs_multi_html = {
 		regex_block_comment:'\n',
@@ -289,21 +293,28 @@ class TexDocument:
 		#---parse the header and store the body
 		self.specs = MDHeaderText(self.raw)
 		self.body = self.specs.core.pop('body')
-		#---???
+		#---boolean which (when false) supresses any tex comments in latex header (useful for submissions)
 		self.tex_comments = self.specs.bool('tex_comments')
 		if kwargs: raise TypeError('unexpected **kwargs: %r'%kwargs)
+
+		#---user may set the tex binary
+		#---! we should warn the user that pdflatex doesn't do comments nicely
+		self.latex_binary = self.specs.spec('latex_binary','pdflatex')
 
 		#---some details from dispatch.yaml e.g. global substitutions
 		dispatch_fn = 'dispatch.yaml'
 		if os.path.isfile(dispatch_fn): 
 			with open(dispatch_fn) as fp:
 				dis = yaml.load(fp.read())
+			aliases = {}
 			#---aliases that should apply to both HTML and LaTeX
-			if 'alias' in dis:
-				for subs in ['subs_tex','subs_html']:
-					tex_html_subs = [(i,j) for i,j in dis['alias'].items()]+\
-						[(key,val) for key,val in getattr(self,subs).items()]
-					setattr(self,subs,odict(tex_html_subs))
+			if 'alias' in dis: aliases.update(**dis['alias'])
+			#---local alias dictionary in the header overrides dispatch
+			if self.specs['alias']: aliases.update(**eval(self.specs['alias']))
+			for subs in ['subs_tex','subs_html']:
+				tex_html_subs = [(i,j) for i,j in aliases.items()]+\
+					[(key,val) for key,val in getattr(self,subs).items()]
+				setattr(self,subs,odict(tex_html_subs))
 
 		#---autodetect available LaTeX headers
 		self.available_tex_formats = [re.match('^header-(.+)\.tex',os.path.basename(fn)).group(1)
@@ -320,6 +331,7 @@ class TexDocument:
 					r"\begin{equation}%s"%('' if x[1] else r'\notag')+x[0]+"%s\end{equation}"%
 					(r"\label{eq:%s}"%x[1] if x[1] else '')+'$$\n',
 			})
+
 		#---figure style for turning @fig:name into e.g. "figure (2)"
 		#---figure prefix for making supplements with figures numbered "S1" usw
 		#---the figure style is automatically uppercased at the beginning of a sentence
@@ -331,6 +343,7 @@ class TexDocument:
 		self.secpref = self.specs.spec('secpref',default='')
 		self.eqnpref = self.specs.spec('eqnpref',default='')
 		self.tabpref = self.specs.spec('tabpref',default='')
+
 		#---prefixing happens live so we populate the subs here
 		self.subs_tex.update(**{'@fig:(%s+)'%self.labelchars:
 			self.figstyle%(r"\\ref{fig:\1}")})
@@ -398,10 +411,14 @@ class TexDocument:
 					if self.vectorbold: 
 						for line in self.vector_bold_command.split('\n'):
 							self.header_more(line)
+					#---! need to add header extras from specs here in a standard format
 					if self.eqnpref : self.header_more(self.equation_prefix%self.eqnpref)
 					if self.secpref: self.header_more(self.section_prefix%self.secpref)
 					if self.figpref: self.header_more(self.figure_prefix%self.figpref)
 					if self.tabpref: self.header_more(self.table_prefix%self.tabpref)
+					#---check for custom "moreheader" entries to add to the latex header
+					extras = self.specs.customs(article=self.style).get('moreheader',None)
+					if extras: self.header_more(self.specs.spec(extras))
 
 				#---write and render
 				self.write_relative(fn=self.name,dn=self.package_dir,nocompile=nocompile)
@@ -640,16 +657,6 @@ class TexDocument:
 		for lineno,line in enumerate(self.parts[part]):
 			for rule in rules:
 				if re.match(rule,line):
-					#---! the following is not visited because equations are multiline now
-					if rule == '^\$\$\s+?$' and version == 'html':
-						equation,look_forward = "",lineno+1
-						while not re.match('^\$\$\s+',self.parts[part][look_forward]):
-							equation += self.parts[part][look_forward] + '\n'
-							look_forward += 1
-						if self.write_equation_images:
-							write_tex_png(equation,self.name,self.equation_counter)
-						self.equation_counter += 1
-					#---! might not be the best way to write the rules
 					self.parts[part][lineno] = rules[rule](re.findall(rule,line)[0])
 
 		#---substitution rules
@@ -831,17 +838,16 @@ class TexDocument:
 
 		"""
 		Render the LaTeX document to pdf.
-		Note that we wish to create a self-contained copy of the document suitable for submission.
+		This creates a self-contained copy of the document suitable for submission or sharing with anybody
+		who has a working TeX environment.
 		"""
 
 		#---before rendering we execute any bash scripts
 		if self.specs.spec('bashrun'): os.system(self.specs.spec('bashrun'))
-
-		#outname, = re.findall('([^\/]+)\.tex$','%s/%s.tex'%(self.package_dir,self.name))
-
-		#---! only render to packaged directories from now on
-		#---! new method is entirely local so overwrite the bbl
-		latex_command = 'pdflatex -shell-escape'
+		#---we only render self-contained tex packages to the to printed directories now
+		#---new method is entirely local so we overwrite the bbl
+		#---! shell-escape only required for minted (for syntax highlighting)
+		latex_command = '%s -shell-escape'%self.latex_binary
 		directory = self.package_dir
 		try:
 			proc = subprocess.Popen(latex_command+' %s.tex'%self.name,shell=True,cwd=directory)
@@ -854,13 +860,13 @@ class TexDocument:
 					bbl_filename, = glob.glob(self.package_dir+'/*.bbl')
 					with open(bbl_filename) as fp: self.parts['bbl'] = fp.readlines()
 					#---rewrite the tex file here
-					self.write_relative(fn=self.name,dn=self.package_dir)			
-				#---run twice as per latex convention
-				proc = subprocess.Popen(latex_command+' %s.tex'%self.name,shell=True,cwd=directory)
-				proc.communicate()
-				#---run twice as per latex convention
-				proc = subprocess.Popen(latex_command+' %s.tex'%self.name,shell=True,cwd=directory)
-				proc.communicate()
+					self.write_relative(fn=self.name,dn=self.package_dir)
+			#---note that we have to run two more times per latex convetion
+			#---even if we lack a bib we still need to run twice more to render the comments
+			proc = subprocess.Popen(latex_command+' %s.tex'%self.name,shell=True,cwd=directory)
+			proc.communicate()
+			proc = subprocess.Popen(latex_command+' %s.tex'%self.name,shell=True,cwd=directory)
+			proc.communicate()
 			#---write a short script to recompile everything
 			with open(os.path.join(directory,'rerender.sh'),'w') as fp:
 				fp.write('#!/bin/bash\n')
@@ -885,6 +891,7 @@ class TexDocument:
 			for fn in glob.glob('cas/hold/%s*'%self.name): os.remove(fn)
 			print("[STATUS] cancelled")
 			sys.exit(1)
+		except Exception as e: raise Exception(e)
 
 	def parse_figure(self,caption):
 
