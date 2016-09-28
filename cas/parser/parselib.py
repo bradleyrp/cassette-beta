@@ -94,6 +94,7 @@ class MDHeaderText:
 	
 		#---regex defns
 		#---specify the formats for different items in the header block
+		regex_comment_line = r'\n\s*\!.+\n'
 		regex_header_parse = [
 			('regex_header_block',(r"^>([ \w\@]+)\s*:\s*\n?$(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
 			('regex_header_yaml',(r"^(~.*?)\s*:\s*\n(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
@@ -101,6 +102,7 @@ class MDHeaderText:
 			]
 
 		#---parse the header
+		self.header = re.sub(regex_comment_line,'\n',self.header,re.MULTILINE)
 		for key,(regex,flags) in regex_header_parse:
 			self.header = re.compile(regex,flags if flags else 0).sub(register_header,self.header)
 		self.header = self.header.strip('\n-').strip()
@@ -417,8 +419,11 @@ class TexDocument:
 					if self.figpref: self.header_more(self.figure_prefix%self.figpref)
 					if self.tabpref: self.header_more(self.table_prefix%self.tabpref)
 					#---check for custom "moreheader" entries to add to the latex header
-					extras = self.specs.customs(article=self.style).get('moreheader',None)
-					if extras: self.header_more(self.specs.spec(extras))
+					extras = self.specs.customs(article=self.style).get('moreheader',None) 
+					if not extras: 
+						extras_general = self.specs.spec('moreheader',None)
+						if extras_general: self.header_more(extras_general)
+					else: self.header_more(self.specs.spec(extras))
 
 				#---write and render
 				self.write_relative(fn=self.name,dn=self.package_dir,nocompile=nocompile)
@@ -794,7 +799,7 @@ class TexDocument:
 			local_bibfile = os.path.basename(self.bibfile)
 			shutil.copyfile(self.bibfile,os.path.join(dn,local_bibfile))
 			self.parts['bbl'] = "\\bibliography{%s}\n"%local_bibfile
-		else: self.parts['bbl'] = '%---no bibfile\n'
+		else: self.parts['bbl'] = '' #---removed no-bibfile
 
 		#---required for multiple bibliographies if compiling chapters
 		if nocompile: 
@@ -815,8 +820,8 @@ class TexDocument:
 					#---! mimic the path-making above and remove it because everything is now relative
 					#---! this is a hackish way to apply self.image_location
 					re.sub(os.path.join(os.getcwd(),path),
-						'fig_%s.pdf'%label,line) for line in specific_parts[key]
-					if self.tex_comments or not re.match('\s*%',line)]
+						'fig_%s.pdf'%label,str(line)) for line in specific_parts[key]
+					if self.tex_comments or not re.match('\s*%',str(line))]
 
 		final_text = ''
 		for key,val in specific_parts.items():
