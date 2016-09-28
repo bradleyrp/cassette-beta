@@ -93,7 +93,7 @@ init:
 
 #---talk to the casette git repository
 dev:
-	git --git-dir=.gitcas ${COMMENTS}
+	@/bin/echo "[NOTE] to update the cassette repo, use: \"git --git-dir=.gitcas\""
 
 #---make a silo typically called "history" if absent
 #---also concurrently make a data repository
@@ -128,3 +128,9 @@ save: banner
 	git --git-dir=./$(siloname)/.git --work-tree=$(siloname)/ commit \
 	--allow-empty -am "${RUN_ARGS}"
 	@if [ false ]; then echo "[STATUS] done"; exit 0; else true; fi	
+
+###---DOCUMENTATION
+
+demo:
+	@if [ -f demo.md ]; then { echo "[ERROR] demo.md already exists"; }; \
+	else { cp cas/sources/demo.md ./ && echo "[NOTE] run \"make\" to view the demo"; }; fi;
