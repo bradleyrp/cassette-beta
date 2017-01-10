@@ -454,7 +454,7 @@ class TexDocument:
 		"""
 
 		perfect_text = self.specs.header
-		perfect_text += re.sub("(\.|\?|\.\")[ \t]+([^\n])",r"\1\n\2",'\n'.join(self.body))
+		perfect_text += re.sub("(\.|\?|\.\")[ \t]+([^\n])",r"\1\n\2",self.body)
 		perfect_text = re.sub('[\n]{2,}','\n\n',perfect_text)
 		purename = self.puredir+'/'+self.name+'.pure'
 		with open(purename,'w') as fp: fp.write(perfect_text)
