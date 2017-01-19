@@ -94,7 +94,7 @@ class MDHeaderText:
 	
 		#---regex defns
 		#---specify the formats for different items in the header block
-		regex_comment_line = r'\n\s*\!.+\n'
+		regex_comment_line = r'\n\s*\!.*?\n'
 		regex_header_parse = [
 			('regex_header_block',(r"^>([ \w\@]+)\s*:\s*\n?$(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
 			('regex_header_yaml',(r"^(~.*?)\s*:\s*\n(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
@@ -102,7 +102,8 @@ class MDHeaderText:
 			]
 
 		#---parse the header
-		self.header = re.sub(regex_comment_line,'\n',self.header,re.MULTILINE)
+		self.header = re.sub(regex_comment_line,'\n\n',self.header,re.MULTILINE)
+
 		for key,(regex,flags) in regex_header_parse:
 			self.header = re.compile(regex,flags if flags else 0).sub(register_header,self.header)
 		self.header = self.header.strip('\n-').strip()
@@ -112,8 +113,8 @@ class MDHeaderText:
 		#---development note: it would be better to have a custom decorator so that each regex
 		#---...header style could have its own processing function like this one
 		for key in [i for i in self.core.keys() if re.match('^~',i)]:
-			self.core[re.sub('^~','',key)] = yaml.load(self.core.pop(key))
-
+			x = self.core.pop(key)
+			self.core[re.sub('^~','',key)] = yaml.load(x)
 		#---clean the header items
 		for key in [i for i in self.core if i!='body']:
 			if type(self.core[key]) not in [bool,dict]:
