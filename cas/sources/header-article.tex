@@ -20,8 +20,8 @@
 \setlistdepth{9}
 
 %---bibliography
-\usepackage[numbers,sort&compress,square]{natbib}
-\bibliographystyle{unsrt}
+%\usepackage[numbers,sort&compress,square]{natbib}
+%\bibliographystyle{unsrt}
 
 %---required for mathscr (math script)
 \usepackage{mathrsfs}
@@ -32,8 +32,22 @@
 %---graphics
 \usepackage{graphicx,grffile}
 
+%---replace undefined references with a message
+\makeatletter
+\def\@setref#1#2#3{%
+  \ifx#1\relax
+   \protect\G@refundefinedtrue
+   \nfss@text{\reset@font\bfseries\huge\textcolor{red}{DEFINE #3 NOW, AND MAKE IT QUICK!}}%
+   \@latex@warning{Reference `#3' on page \thepage \space
+             undefined}%
+  \else
+   \expandafter#2#1\null
+  \fi}
+\makeatother
+
+
 %---ocgcolorlinks prints links in black but shows them in color
-\usepackage[unicode=true,ocgcolorlinks]{hyperref}
+%\usepackage[unicode=true,ocgcolorlinks]{hyperref}
 
 %---newlines in tables
 \usepackage{tabularx}
@@ -42,15 +56,15 @@
 \newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
 
 %---hyperlinks
-\hypersetup{
-breaklinks=true,
-bookmarks=true,
-pdfauthor={@AUTHORS},
-colorlinks=true,
-citecolor=blue,
-urlcolor=blue,
-linkcolor=blue,
-pdfborder={0 0 0}}
+%\hypersetup{
+%breaklinks=true,
+%bookmarks=true,
+%pdfauthor={@AUTHORS},
+%colorlinks=true,
+%citecolor=blue,
+%urlcolor=blue,
+%linkcolor=blue,
+%pdfborder={0 0 0}}
 
 %---floating
 \usepackage{float}
@@ -73,7 +87,7 @@ pdfborder={0 0 0}}
 \definecolor{aliceblue}{rgb}{0.94, 0.97, 1.0}
 
 %---syntax highlighting
-\usepackage{minted}
+%---! off for now \usepackage{minted}
 \AfterEndPreamble{\def\PYGdefaultZsq{\textquotesingle}}
 
 %---row padding in tables
@@ -81,6 +95,28 @@ pdfborder={0 0 0}}
 \newcolumntype{d}[1]{D{.}{.}{#1}}
 \setlength{\extrarowheight}{5pt}
 \setlength{\arraycolsep}{5pt}
+
+%---red text for undefined references
+\makeatletter
+\def\@setref#1#2#3{%
+  \ifx#1\relax
+   \protect\G@refundefinedtrue
+   %---could be more glaring: "\reset@font\bfseries\huge\textcolor{red}"
+   \nfss@text{\reset@font\textcolor{red}{\texttt{@#3}}}%
+   \@latex@warning{Reference `#3' on page \thepage \space undefined}%
+  \else
+   \expandafter#2#1\null
+  \fi}
+\makeatother
+
+%---show keys for missing references (see also: showkeys)
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\@setref}{\bfseries ??}{[\texttt{#3}]}{}{%
+  \GenericWarning{}{Failed to patch \protect\@setref}}
+\patchcmd{\@citex}{\bfseries ?}{\texttt{\@citeb}}{}{%
+  \GenericWarning{}{Failed to patch \protect\@citex}}
+\makeatother
 
 %---END HEADER
 

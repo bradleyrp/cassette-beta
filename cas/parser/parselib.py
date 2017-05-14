@@ -169,7 +169,8 @@ class TexDocument:
 	markup_regex = "\\\pdfmarkupcomment\\[markup=[A-Za-z]+,color=[A-Za-z]+\\]\{([^\}]+)\}\{[^\}]*\}"
 	vector_bold_command = r"% all vectors are bold"+'\n'+r'\renewcommand{\vec}[1]{\mathbf{#1}}'+'\n'
 	labelchars = '[A-Za-z0-9_-]'
-	spacing_chars = '\s:\.,'
+	#---note that trailing parentheses is a spacing character because figure references can be parenthetical
+	spacing_chars = '\s:\.,\)'
 	bibkey = '[a-zA-Z\-]+-[0-9]{4}[a-z]?'
 	available_tex_formats = ['article']
 	author_affiliation_regex = '^([^@]+)(?<!\\s)\\s*@?(.*)$'
@@ -197,7 +198,7 @@ class TexDocument:
 	rules_html = {
 		'^(#+)(\*)?\s*(.*?)\s*(?:\{#sec:(.+)\})?$':lambda s : '\n<br><h%d %s>%s</h%d>\n'%(
 			len(s[0])+1,'id="%s"'%('-'.join(s[2].split(' ')).lower() if not s[3] 
-			else s[3]),s[2],len(s[0])),
+			else s[3]),s[2],len(s[0])+1),
 		'^>+\s*$':lambda s : s,
 		'^[0-9]+\.\s?(.+)':lambda s : '<li>%s</li>\n'%s,
 		'^\s*$':lambda s : '<p>',
@@ -258,6 +259,8 @@ class TexDocument:
 		(r"@chap:(%s+)"%labelchars,r'<a href="\1.html">N</a>'),
 		(r"\\vspace\{([^\}]+)\}",""),
 		(r"~(.*?)\|(.*?)~",r"\2"),
+		#---latex-only refs get some styling that harkens to tex
+		(r"\\ref{(.*?)}",r"@{\1}"),
 		])
 
 	subs_multi_html = {
@@ -341,6 +344,7 @@ class TexDocument:
 		#---the styles and prefixes also apply to equations and sections for the supplement
 		self.figstyle = self.specs.spec('figstyle','figure (%s)').strip('"')
 		self.secstyle = self.specs.spec('secstyle','section (%s)').strip('"')
+		self.secstyle_html = self.specs.spec('secstyle','&sect;%s').strip('"')
 		self.eqnstyle = self.specs.spec('eqnstyle','equation (%s)').strip('"')
 		self.figpref = self.specs.spec('figpref',default='')
 		self.secpref = self.specs.spec('secpref',default='')
@@ -355,7 +359,7 @@ class TexDocument:
 		self.subs_tex.update(**{'@eq:(%s+)'%self.labelchars:
 			self.eqnstyle%(r"\\ref{eq:\1}")})
 		self.subs_html.update(**{'@sec:(%s+)'%self.labelchars:
-			'<a href="#%s">%s</a>'%(r"\1",self.secstyle%(self.secpref+r"\1")),
+			'<a href="#%s">%s</a>'%(r"\1",self.secstyle_html%(self.secpref+r"\1")),
 			'@(eq:%s+)'%self.labelchars:self.eqnstyle%r"$\eqref{\1}$"})
 		self.bibfile = self.specs.spec('bibliography')
 		self.write_equation_images = self.specs.bool('write_equation_images')
@@ -534,7 +538,7 @@ class TexDocument:
 		author_text = [] 
 		author = self.specs.spec('author')
 		if author:
-			author_text.append('\n<br><h3>Authors</h1><ul>\n')
+			author_text.append('\n<br><h3>Authors</h3><ul>\n')
 			for a in author: author_text.append('<li> %s'%a)
 			author_text.append('</ul>\n')
 		self.parts['author'] = author_text
@@ -543,7 +547,7 @@ class TexDocument:
 		abstract_text = []
 		abstract = self.specs.spec('abstract')
 		if abstract:
-			abstract_text.append('<h3>Abstract</h1>\n')
+			abstract_text.append('<h3>Abstract</h3>\n')
 			abstract_text.append(abstract+'\n')
 		self.parts['abstract'] = abstract_text
 
@@ -557,6 +561,8 @@ class TexDocument:
 		self.parts_list.append('bibliography')
 		html = []
 
+		if not os.path.isfile(self.bibfile):
+			raise Exception('cannot find bibliography %s. remove it from the header or find it'%self.bibfile)
 		with open(self.bibfile,'r') as fp: biblines = fp.readlines()
 		#---entry starting line numbers
 		lnos = linesnip(biblines,'@',is_header=False)
@@ -636,6 +642,10 @@ class TexDocument:
 		#---track the order of images for numbering in HTML and conversion to PDF in LaTeX
 		#---! note that we disallow the use of the regular markdown figure syntax, which must be removed
 		self.images = [i[:2] for i in re.findall(self.figure_regex,newlined,re.MULTILINE+re.DOTALL)]
+		missing_images = [fn for name,fn in self.images 
+			if not os.path.isfile(os.path.join(self.image_location,fn))]
+		if any(missing_images):
+			raise Exception('missing images %s'%missing_images)
 		#---intervene to write all the equations to separate PNGs
 		if version == 'latex' and self.write_equation_images:
 			rule = re.compile(self.regex_equation,re.MULTILINE+re.DOTALL)
@@ -692,39 +702,58 @@ class TexDocument:
 		for key in self.parts_list:
 			val = self.parts[key]
 			specific_parts[key] = val
+			imagenos = list(zip(*self.images))[0]
+			#---since figure_convert_html writes the bold figure titles carefully, we can simply replace 
+			#---...these by name. note that the greedy search in strong tags makes this precise
+			#---! switching to block of text from lines --- note that we should remove the lined versions
+			#---! ...and operate with blocks more often
+			specific_parts[key] = re.sub('<strong>@fig:(.*?)</strong>',
+				lambda x:'<strong>Figure %d. </strong>'%(imagenos.index(x.group(1))+1),
+				'\n'.join(specific_parts[key])).split('\n')
+			#import pdb;pdb.set_trace()	
+			if False:
+				for ll,line in enumerate(specific_parts[key]):
+					for figname,path in self.images:
+						#---! is there a more efficient way to do line-by-line substitutions
+						#---! ...could we do a substitution in place?
+						#---must have the strong below otherwise no way to tell link from caption
+						specific_parts[key][ll] = re.sub('<strong>@fig:'+figname,
+							'<strong>Figure %d'%(list(zip(*self.images))[0].index(figname)+1),
+							specific_parts[key][ll])
+			#---replace figure pointers with links
 			for ll,line in enumerate(specific_parts[key]):
-				for figname,path in self.images:
-					#---! is there a more efficient way to do line-by-line substitutions
-					#---! ...could we do a substitution in place?
-					#---must have the strong below otherwise no way to tell link from caption
-					specific_parts[key][ll] = re.sub('<strong>@fig:'+figname,
-						'<strong>Figure %d'%(list(zip(*self.images))[0].index(figname)+1),
-						specific_parts[key][ll])
 				#---search and replace figure captions made by figure_convert_html
 				if re.search('@fig',specific_parts[key][ll]) != None:
 					for figlabel in re.findall('@fig:(%s+)'%self.labelchars,specific_parts[key][ll]):
 						if re.search('@fig:%s([%s])'%(figlabel,self.spacing_chars),
 							specific_parts[key][ll]):
+							specific_parts[key][ll] = re.sub(
+								'@fig:(%s)([%s])'%(figlabel,self.spacing_chars),
+								lambda x:self.figstyle%(
+									r'<a href="#fig:%s">%s%d</a>%s'%(
+										figlabel,self.figpref,imagenos.index(x.group(1))+1,x.group(2))),
+								specific_parts[key][ll])
+							#import pdb;pdb.set_trace()
+						if False:
 							try: num = list(zip(*self.images))[0].index(figlabel)
 							except: raise Exception('[ERROR] could not find "%s" in imagelist'%figlabel)
 							specific_parts[key][ll] = re.sub('@fig:%s([%s])'%(
 								figlabel,self.spacing_chars),
-								r'figure (<a href="#fig:%s">%s%s</a>)\1'%(figlabel,self.figpref,
-									num+1),
+								self.figstyle%(r'<a href="#fig:%s">%s%s</a>\1'%(figlabel,self.figpref,num+1)),
 								specific_parts[key][ll])
-						else:
+						if False:#else:
 							#---! this might be necessary to have the figure link in parentheses
 							try:
 								specific_parts[key][ll] = re.sub('@fig:%s()'%figlabel,
-									r'figure (<a href="#fig:%s">%s%s</a>)\1'%(figlabel,self.figpref,
-										zip(*self.images)[0].index(figlabel)+1),
+									self.figstyle%(r'<a href="#fig:%s">%s%s</a>\1'%(figlabel,self.figpref),
+									imagenos.index(figlabel)+1),
 									specific_parts[key][ll])
 							except: print('[WARNING] failed to find some images')
-			#---capitalize figures
-			#---! redundant with proc
-			for lineno,line in enumerate(self.parts[key]):
-				self.parts[key][lineno] = re.sub(r'\. figure',r'. Figure',self.parts[key][lineno])
-				self.parts[key][lineno] = re.sub('^figure','Figure',self.parts[key][lineno])
+				#---capitalize figures
+				#---! redundant with proc
+				for lineno,line in enumerate(self.parts[key]):
+					self.parts[key][lineno] = re.sub(r'\. figure',r'. Figure',self.parts[key][lineno])
+					self.parts[key][lineno] = re.sub('^figure','Figure',self.parts[key][lineno])
 		
 		with open(os.path.join(dn,fn+'.html'),'w') as fp:
 			for key in self.parts_list:
@@ -961,7 +990,7 @@ class TexDocument:
 		label = extracts[0] if extracts[0] else False
 		figure_text_html = '\n'.join([
 			'<figure %sclass="figure">'%('id="fig:%s" '%label if label else ''),
-			'<a%s></a>'%('name="fig:%s"'%label if label else ''),
+			'<a %s></a>'%('name="fig:%s"'%label if label else ''),
 			'<img src="%s" style="%s" align="middle">'%(path,style),
 			"<figcaption><strong>%s</strong>\n%s"%("@fig:%s"%label if label else "Figure",caption),
 			'</figcaption></figure>\n\n',
@@ -990,7 +1019,7 @@ class TexDocument:
 		#---use re.split and re.findall to iteratively replace references in groups
 		for lineno,line in enumerate(self.parts[part]):
 			if re.search('(\[?@[a-zA-Z]+-[0-9]{4}[a-z]?\s?;?\s?)+\]?',line)!=None:
-				refs = re.findall('\[?@(%s)(?:\s|\])?'%self.bibkey,line)
+				refs = re.findall('\[?@(%s)(?:\s\|\Z|\])?'%self.bibkey,line)
 				notrefs = re.split('@%s'%self.bibkey,line)
 				self.refs.extend(refs)
 				#---! cannot start a line with a reference
@@ -1001,7 +1030,16 @@ class TexDocument:
 						newline.append('\%s{'%self.citation_type)
 						inside_reference = True
 					newline.append(refs[ii])
-					if re.match('^\s*;?\s*$',i): newline.append(',')
+					#---terminate the reference at the end of the line automatically
+					#---...this was added because references as the end of a line were not terminating
+					#if re.match('^\s*$',i): 
+					#	newline.append('}'+i.lstrip(']'))
+					#	inside_reference = False
+					#---! is this terminating the references? 
+					if re.match('^[ \t]*;?[ \t]$',i): 
+						#import pdb;pdb.set_trace()
+						newline.append(',')
+					#---otherwise terminate
 					elif inside_reference: 
 						newline.append('}'+i.lstrip(']'))
 						inside_reference = False
