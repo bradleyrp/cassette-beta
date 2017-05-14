@@ -8,17 +8,14 @@ import tempfile
 import shutil
 import yaml
 
-#---STANDALONES
-#-------------------------------------------------------------------------------------------------------------
+###---STANDALONES
 
 def write_tex_png(formula,name,count,label=None,vectorbold=False):
-
 	"""
 	Convert a TeX equation to PNG.
 	Take a formula and write an equation based on the document name and an optional label. 
 	We also receive the count in case uses wish to put it in the filename.
 	"""
-
 	#---specify the template for a standalone equation
 	#---note the linewidth below might be too small for lengthy equations
 	template_tex_png = '\n'.join([r"",r"\documentclass[border=2pt]{standalone}",r"\usepackage{varwidth}",
@@ -37,12 +34,9 @@ def write_tex_png(formula,name,count,label=None,vectorbold=False):
 			os.path.basename(tmpdir) if not label else label))
 
 def linesnip(lines,*regex,**kwargs):
-
 	"""
 	Custom function for choosing sections of the markdown file for specific processing rules.
-	!DEVNOTE: 
 	"""
-
 	is_header = kwargs.get('is_header',True)
 	if len(regex)==1:
 		#---a single regex will return the line numbers for all matches
@@ -60,8 +54,7 @@ def linesnip(lines,*regex,**kwargs):
 	if is_header and len(line_nos)==2: line_nos[1] += 1
 	return line_nos
 
-#---CLASSES
-#-------------------------------------------------------------------------------------------------------------
+###---CLASSES
 
 class MDHeaderText:
 
@@ -98,8 +91,7 @@ class MDHeaderText:
 		regex_header_parse = [
 			('regex_header_block',(r"^>([ \w\@]+)\s*:\s*\n?$(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
 			('regex_header_yaml',(r"^(~.*?)\s*:\s*\n(.*?)\n([\.]{3,}|\n|[-]{3,})",re.M+re.DOTALL)),
-			('regex_header_single',(r"^([ \w\@]+):\s*(.*?)\s*$",re.M)),
-			]
+			('regex_header_single',(r"^([ \w\@]+):\s*(.*?)\s*$",re.M)),]
 
 		#---parse the header
 		self.header = re.sub(regex_comment_line,'\n\n',self.header,re.MULTILINE)
@@ -124,7 +116,7 @@ class MDHeaderText:
 				self.core[key] = re.sub(r"([^\n])\s*\n\s*([^\n])",r"\1 \2",self.core[key])
 
 		#---set the article-specific customizer syntax (acts on keys and will be split later)
-		self.regex_article_specific = '^(.*?)@(.+)';
+		self.regex_article_specific = '^(.*?)@(.+)'
 
 	def __getitem__(self,key,default=None): return self.core.get(key,default)
 	def bool(self,key,default=False):
@@ -143,13 +135,6 @@ class MDHeaderText:
 			return dict(key_to_specific_articles)
 		else: 
 			return dict([(j,i) for i,(j,k) in key_to_specific_articles.items() if article in k])
-
-#---!
-class TexTemplate:
-
-	def __init__(self,name):
-
-		self.name = name
 
 class TexDocument:
 
@@ -191,8 +176,7 @@ class TexDocument:
 		#---turn hash-prefixed headings into section delimiters with an optional label
 		'^(#+)(\*)?\s*(.*?)\s*(?:\{#sec:(.+)\})?$':lambda s : '\%s%s{%s%s}\n'%(
 			{1:'section',2:'subsection',3:'subsubsection',4:'paragraph',5:'subparagraph'}[len(s[0])],
-			s[1],s[2],'' if not s[3] else r"\label{sec:%s}"%s[3]),
-		}
+			s[1],s[2],'' if not s[3] else r"\label{sec:%s}"%s[3]),}
 
 	#---replacement rules for HTML
 	rules_html = {
@@ -201,8 +185,7 @@ class TexDocument:
 			else s[3]),s[2],len(s[0])+1),
 		'^>+\s*$':lambda s : s,
 		'^[0-9]+\.\s?(.+)':lambda s : '<li>%s</li>\n'%s,
-		'^\s*$':lambda s : '<p>',
-		}
+		'^\s*$':lambda s : '<p>',}
 
 	#---note that order matters in the following dictionary
 	subs_tex = odict([
@@ -224,8 +207,7 @@ class TexDocument:
 		#---or inline pygments/minted: ('`([^`]+)`\s\<(.+)\>',r"\mintinline{\2}{\1}",)
 		(r"\#",r"\\#"),
 		#---switch between TeX/HTML
-		(r"~(.*?)\|(.*?)~",r"\1"),
-		])
+		(r"~(.*?)\|(.*?)~",r"\1"),])
 
 	#---multiline regex substitutions or replacements for LaTeX
 	subs_multi_tex = {
@@ -234,8 +216,7 @@ class TexDocument:
 		regex_block_comment:'\n',
 		regex_equation:
 			lambda x : '\n'+r"\begin{equation}%s"%('' if x[1] else r'\notag')+x[0]+'\n'+"%s\end{equation}"%
-			(r"\label{eq:%s}"%x[1]+'\n' if x[1] else '')+'\n\n',
-		}
+			(r"\label{eq:%s}"%x[1]+'\n' if x[1] else '')+'\n\n',}
 
 	#---? figure will not be capitalized sometimes
 	#---? double asterisk may not work if dictionary in wrong order
@@ -260,16 +241,14 @@ class TexDocument:
 		(r"\\vspace\{([^\}]+)\}",""),
 		(r"~(.*?)\|(.*?)~",r"\2"),
 		#---latex-only refs get some styling that harkens to tex
-		(r"\\ref{(.*?)}",r"@{\1}"),
-		])
+		(r"\\ref{(.*?)}",r"@{\1}"),])
 
 	subs_multi_html = {
 		regex_block_comment:'\n',
 		'\n\n([0-9]+\.)':'\n<ol>\n'+r"\1",
 		'\n([0-9]+\.\s*[^\n]+)\n\n':'\n'+r"\1"+'\n</ol>\n',
 		r"(?:\\begin\{table\})(.*?)(?:\\end\{table\})":
-			'<text style="color:gray"><strong>cannot render tex table (see the PDF)</strong></text>',
-		}
+			'<text style="color:gray"><strong>cannot render tex table (see the PDF)</strong></text>',}
 
 	#---order matters
 	special_subs_tex = odict([
@@ -280,18 +259,14 @@ class TexDocument:
 		(r'\' ',"' "),
 		(r'~',r'$\sim$'),
 		(r'\.\.\.',r'\ldots'),
-		(r"([0-9]+\.?[0-9]*)%",r"\1\%"),
-		])
+		(r"([0-9]+\.?[0-9]*)%",r"\1\%"),])
 	special_subs_html = odict([
-		(r'---',r'&mdash;'),
-		])
+		(r'---',r'&mdash;'),])
 	
 	def __init__(self,fn,**kwargs):
-
 		"""
 		This constructor organizes all of the document processing. See the class docstring for details.
 		"""
-
 		if type(fn)==list: raise Exception('expecting a file name')
 		else: 
 			with open(fn) as fp: self.raw = fp.read()
@@ -335,8 +310,7 @@ class TexDocument:
 			self.regex_equation:
 				lambda x : '\n$$'+('' if not self.vectorbold else self.vector_bold_command)+
 					r"\begin{equation}%s"%('' if x[1] else r'\notag')+x[0]+"%s\end{equation}"%
-					(r"\label{eq:%s}"%x[1] if x[1] else '')+'$$\n',
-			})
+					(r"\label{eq:%s}"%x[1] if x[1] else '')+'$$\n',})
 
 		#---figure style for turning @fig:name into e.g. "figure (2)"
 		#---figure prefix for making supplements with figures numbered "S1" usw
@@ -407,8 +381,6 @@ class TexDocument:
 				self.direct()
 				self.proc()
 				self.bib()
-				#---! hacked this away
-				if False: self.blanker()
 
 				#---the NOCOMPILE comment flag prevents compile steps in the case of e.g. chapters
 				nocompile = any([i for i in self.parts['header'] if re.match('^\s*%-+\s*NOCOMPILE',i)])
@@ -453,11 +425,9 @@ class TexDocument:
 		self.posterity()
 
 	def posterity(self):
-
 		"""
 		Save a version of this file suitable for git, specifically with one sentence per line.
 		"""
-
 		perfect_text = self.specs.header
 		perfect_text += re.sub("(\.|\?|\.\")[ \t]+([^\n])",r"\1\n\2",self.body)
 		perfect_text = re.sub('[\n]{2,}','\n\n',perfect_text)
@@ -466,12 +436,10 @@ class TexDocument:
 		print('[STATUS] wrote %s'%purename)
 
 	def direct(self):
-
 		"""
 		Prepare each section of the document according to replacement flags in the LaTeX 
 		header and a set of simple rules.
 		"""
-
 		#---retrieve a footer if it exists
 		footer_fn = 'cas/sources/footer-%s.tex'%self.style
 		if os.path.isfile(footer_fn):
@@ -490,8 +458,7 @@ class TexDocument:
 			'bbl':'\\bibliography{%s}\n'%
 				os.path.abspath(self.specs.spec('bibliography')) 
 				if self.specs.spec('bibliography') else None,
-			'footer':footer_lines,
-			}
+			'footer':footer_lines,}
 
 		#---loop over the sections marked in comments in the header
 		replacement_markers = [(i.lower(),j) for i,j in 
@@ -515,12 +482,10 @@ class TexDocument:
 					else: self.parts['header'][self.header_replacements[placeholder.upper()]] = extracted
 
 	def direct_html(self):
-
 		"""
 		Prepare each section of the document according to replacement flags in the 
 		header and a set of simple rules.
 		"""
-
 		#---while the direct function for latex infers sections from comments we hard-code them for html
 		self.parts = {}
 		with open('./cas/sources/%s'%self.html_template,'r') as fp: self.html_header = fp.readlines()
@@ -556,7 +521,9 @@ class TexDocument:
 		self.parts_list = ['header','author','abstract','body']
 
 	def bibliography_html(self):
-
+		"""
+		Make the HTML bibliograpy.
+		"""
 		if not self.bibfile: return
 		self.parts_list.append('bibliography')
 		html = []
@@ -587,9 +554,7 @@ class TexDocument:
 						self.parts['body'][lineno] = re.sub('@%s'%found,
 							'[<a href="#refno%d">%d</a>]'%(ordlookup[found],ordlookup[found]),
 							self.parts['body'][lineno])
-					except:
-						print("OOPS")
-						import pdb;pdb.set_trace()
+					except: raise Exception('cannot link %s'%found)
 
 		details = {}
 		for key in sorted(ordlookup.keys()):
@@ -619,11 +584,9 @@ class TexDocument:
 		self.parts['bibliography'] = html
 
 	def proc(self,part='body',version='latex'):
-
 		"""
 		Perform all text transformations for the body of a document.
 		"""
-
 		if version == 'latex': 
 			rules = self.rules_tex
 			subs = self.subs_tex
@@ -691,11 +654,9 @@ class TexDocument:
 			self.parts[part][lineno] = re.sub('^figure','Figure',self.parts[part][lineno])
 
 	def write_html(self,fn,dn):
-
 		"""
 		Render markdown to HTML.
 		"""
-
 		#---make a copy of self.parts which we will make path substitutions in
 		specific_parts = {}
 		#---loop over each part and make the substitutions
@@ -710,16 +671,6 @@ class TexDocument:
 			specific_parts[key] = re.sub('<strong>@fig:(.*?)</strong>',
 				lambda x:'<strong>Figure %d. </strong>'%(imagenos.index(x.group(1))+1),
 				'\n'.join(specific_parts[key])).split('\n')
-			#import pdb;pdb.set_trace()	
-			if False:
-				for ll,line in enumerate(specific_parts[key]):
-					for figname,path in self.images:
-						#---! is there a more efficient way to do line-by-line substitutions
-						#---! ...could we do a substitution in place?
-						#---must have the strong below otherwise no way to tell link from caption
-						specific_parts[key][ll] = re.sub('<strong>@fig:'+figname,
-							'<strong>Figure %d'%(list(zip(*self.images))[0].index(figname)+1),
-							specific_parts[key][ll])
 			#---replace figure pointers with links
 			for ll,line in enumerate(specific_parts[key]):
 				#---search and replace figure captions made by figure_convert_html
@@ -733,22 +684,6 @@ class TexDocument:
 									r'<a href="#fig:%s">%s%d</a>%s'%(
 										figlabel,self.figpref,imagenos.index(x.group(1))+1,x.group(2))),
 								specific_parts[key][ll])
-							#import pdb;pdb.set_trace()
-						if False:
-							try: num = list(zip(*self.images))[0].index(figlabel)
-							except: raise Exception('[ERROR] could not find "%s" in imagelist'%figlabel)
-							specific_parts[key][ll] = re.sub('@fig:%s([%s])'%(
-								figlabel,self.spacing_chars),
-								self.figstyle%(r'<a href="#fig:%s">%s%s</a>\1'%(figlabel,self.figpref,num+1)),
-								specific_parts[key][ll])
-						if False:#else:
-							#---! this might be necessary to have the figure link in parentheses
-							try:
-								specific_parts[key][ll] = re.sub('@fig:%s()'%figlabel,
-									self.figstyle%(r'<a href="#fig:%s">%s%s</a>\1'%(figlabel,self.figpref),
-									imagenos.index(figlabel)+1),
-									specific_parts[key][ll])
-							except: print('[WARNING] failed to find some images')
 				#---capitalize figures
 				#---! redundant with proc
 				for lineno,line in enumerate(self.parts[key]):
@@ -766,38 +701,30 @@ class TexDocument:
 				fp.write('\n')
 
 	def header_more(self,line):
-
 		"""
 		Add a line to the header.
 		"""
-
 		lastline = next(ii for ii,i in enumerate(self['header']) if re.match('^\s*\%-+END HEADER',i))
 		self['header'].insert(lastline,line)
 
 	def __getitem__(self,index): return self.parts[index]
 
 	def body(self):
-
 		"""
 		Extract the body of the text, separating it from the header.
 		"""
-
 		return self.raw[linesnip(self.raw,'^-+\s+?$')[-1]+1:]
 
 	def add(self,**kwargs):
-
 		"""
 		Add a component of the document.
 		"""
-
 		for key,val in kwargs.items(): self.parts[key] = val
 
 	def write(self,fn):
-
 		"""
 		Write the document to tex format.
 		"""
-
 		with open(fn,'w') as fp:
 			for key,val in self.parts.items():
 				if type(val)==str: fp.write(val)
@@ -809,13 +736,11 @@ class TexDocument:
 				fp.write('\n')
 
 	def write_relative(self,fn,dn,nocompile=False):
-
 		"""
 		Write a relative copy of the tex file inside a pack folder with path substitutions 
 		and fetch dependencies.
 		!LATER EXPAND THIS TO HANDLE BODY TEX FILES!
 		"""
-
 		#---convert images to PDF
 		image_spot = self.image_location if self.image_location else ''
 		for label,path in self.images:
@@ -835,8 +760,8 @@ class TexDocument:
 		#---required for multiple bibliographies if compiling chapters
 		if nocompile: 
 			#---! hacked for thesis
-			#self.parts['bbl'] = r"\bibliographystyle{iitmthesis}"+'\n'+self.parts['bbl']
-			#self.parts['bbl'] = r"\bibliographystyle{iitmthesis}"
+			#---! ...self.parts['bbl'] = r"\bibliographystyle{iitmthesis}"+'\n'+self.parts['bbl']
+			#---! ...self.parts['bbl'] = r"\bibliographystyle{iitmthesis}"
 			del self.parts['bbl']
 			self.parts['body'].insert(0,r"\chapter{%s}\label{chap:%s}"%(self.specs.spec('title'),
 				self.name)+'\n')
@@ -870,13 +795,11 @@ class TexDocument:
 		with open(os.path.join(dn,fn+'.tex'),'w') as fp: fp.write(final_text)
 
 	def render(self):
-
 		"""
 		Render the LaTeX document to pdf.
 		This creates a self-contained copy of the document suitable for submission or sharing with anybody
 		who has a working TeX environment.
 		"""
-
 		#---before rendering we execute any bash scripts
 		if self.specs.spec('bashrun'): os.system(self.specs.spec('bashrun'))
 		#---we only render self-contained tex packages to the to printed directories now
@@ -929,12 +852,10 @@ class TexDocument:
 		except Exception as e: raise Exception(e)
 
 	def parse_figure(self,caption):
-
 		"""
 		Given the figure caption (all lines after the declaration/name and the path), extract
 		useful information about how to format a figure.
 		"""
-
 		#---extract any modifiers from the caption
 		regex_param_line = '^(\s*\{)(.+)(\}\s*)$'
 		#---defaults
@@ -949,11 +870,9 @@ class TexDocument:
 		return caption,extras
 
 	def figure_convert_tex(self,extracts):
-
 		"""
 		Convert a figure block into a LaTeX figure.
 		"""
-
 		#---unpack the items from regex_figure (first group has the label, second has the path)
 		path = os.path.abspath(extracts[1])
 		#---the third group is the caption from which we pop any lines solely inside braces
@@ -972,11 +891,9 @@ class TexDocument:
 		return text
 
 	def figure_convert_html(self,extracts):
-
 		"""
 		Convert markdown figure to HTML with numbering.
 		"""
-
 		#---unpack the items from regex_figure (first group has the label, second has the path)
 		path = os.path.join(self.image_location if self.image_location else '',extracts[1])
 		#---the third group is the caption from which we pop any lines solely inside braces
@@ -998,24 +915,20 @@ class TexDocument:
 		return figure_text_html
 
 	def blanker(self,part='body'):
-
 		"""
 		Remove anything in the pattern.
 		HACKED to only remove markups.
 		THIS IS DEPRECATED: make a flag for suppressing comments!
 		"""
-
 		#---substitution rules
 		for lineno,line in enumerate(self.parts[part]):
 			for rule,convert in self.subs_tex.items():
 				self.parts['body'][lineno] = re.sub(self.markup_regex,'',self.parts['body'][lineno])
 
 	def bib(self,part='body'):
-
 		"""
 		Replace markdown citations with LaTeX citations.
 		"""
-
 		#---use re.split and re.findall to iteratively replace references in groups
 		for lineno,line in enumerate(self.parts[part]):
 			if re.search('(\[?@[a-zA-Z]+-[0-9]{4}[a-z]?\s?;?\s?)+\]?',line)!=None:
