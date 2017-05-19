@@ -9,7 +9,10 @@ Updated from parser.py to include revtex and more explicit data handling.
 
 #---settings
 instruct = sys.argv[1]
-with open('cas/parser/parselib.py') as f: exec(f.read())
+#---! previously used exec. why?
+#with open('cas/parser/parselib.py') as f: exec(f.read())
+from parselib import TexDocument
+
 #---list the available texts
 if instruct == 'list':
 	#---! verbatim from director.py
