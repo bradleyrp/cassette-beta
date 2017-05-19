@@ -337,7 +337,7 @@ class TexDocument:
 		#---figure style for turning @fig:name into e.g. "figure (2)"
 		#---figure prefix for making supplements with figures numbered "S1" usw
 		#---the figure style is automatically uppercased at the beginning of a sentence
-		#---the styles and prefixes also apply to equations and sections for the supplement
+		#---the styles and prefixes also apply to equations and sections for the supplements
 		self.figstyle = self.specs.spec('figstyle','figure (%s)').strip('"')
 		self.secstyle = self.specs.spec('secstyle','section (%s)').strip('"')
 		self.eqnstyle = self.specs.spec('eqnstyle','equation (%s)').strip('"')
@@ -708,7 +708,8 @@ class TexDocument:
 							except: raise Exception('[ERROR] could not find "%s" in imagelist'%figlabel)
 							specific_parts[key][ll] = re.sub('@fig:%s([%s])'%(
 								figlabel,self.spacing_chars),
-								r'figure (<a href="#fig:%s">%s%s</a>)\1'%(figlabel,self.figpref,
+								#---! need to apply figstyle here? from the specs? mod for write-ptdins
+								r'(<a href="#fig:%s">%s%s</a>)\1'%(figlabel,self.figpref,
 									num+1),
 								specific_parts[key][ll])
 						else:
