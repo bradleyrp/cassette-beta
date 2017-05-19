@@ -693,13 +693,14 @@ class TexDocument:
 			
 		with open(os.path.join(dn,fn+'.html'),'w') as fp:
 			for key in self.parts_list:
-				val = specific_parts[key]
-				if type(val)==str: 
-					fp.write(val)
-				elif type(val)==list:
-					for line in val: fp.write(line)
-				else: raise Exception('\n[ERROR] cannot understand this part of the document: %s'%key)
-				fp.write('\n')
+				if key in specific_parts:
+					val = specific_parts[key]
+					if type(val)==str: 
+						fp.write(val)
+					elif type(val)==list:
+						for line in val: fp.write(line)
+					else: raise Exception('\n[ERROR] cannot understand this part of the document: %s'%key)
+					fp.write('\n')
 
 	def header_more(self,line):
 		"""
