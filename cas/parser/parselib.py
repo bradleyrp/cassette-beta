@@ -136,6 +136,8 @@ class MDHeaderText:
 		else: 
 			return dict([(j,i) for i,(j,k) in key_to_specific_articles.items() if article in k])
 
+def underscore(x): return re.sub('_','ZZZ',x)
+
 class TexDocument:
 
 	"""
@@ -176,7 +178,7 @@ class TexDocument:
 		#---turn hash-prefixed headings into section delimiters with an optional label
 		'^(#+)(\*)?\s*(.*?)\s*(?:\{#sec:(.+)\})?$':lambda s : '\%s%s{%s%s}\n'%(
 			{1:'section',2:'subsection',3:'subsubsection',4:'paragraph',5:'subparagraph'}[len(s[0])],
-			s[1],s[2],'' if not s[3] else r"\label{sec:%s}"%s[3]),}
+			s[1],s[2],'' if not s[3] else r"\label{sec:%s}"%underscore(s[3])),}
 
 	#---replacement rules for HTML
 	rules_html = {
@@ -216,7 +218,7 @@ class TexDocument:
 		regex_block_comment:'\n',
 		regex_equation:
 			lambda x : '\n'+r"\begin{equation}%s"%('' if x[1] else r'\notag')+x[0]+'\n'+"%s\end{equation}"%
-			(r"\label{eq:%s}"%x[1]+'\n' if x[1] else '')+'\n\n',}
+			(r"\label{eq:%s}"%underscore(x[1])+'\n' if x[1] else '')+'\n\n',}
 
 	#---? figure will not be capitalized sometimes
 	#---? double asterisk may not work if dictionary in wrong order
@@ -310,7 +312,7 @@ class TexDocument:
 			self.regex_equation:
 				lambda x : '\n$$'+('' if not self.vectorbold else self.vector_bold_command)+
 					r"\begin{equation}%s"%('' if x[1] else r'\notag')+x[0]+"%s\end{equation}"%
-					(r"\label{eq:%s}"%x[1] if x[1] else '')+'$$\n',})
+					(r"\label{eq:%s}"%underscore(x[1]) if x[1] else '')+'$$\n',})
 
 		#---figure style for turning @fig:name into e.g. "figure (2)"
 		#---figure prefix for making supplements with figures numbered "S1" usw
@@ -327,11 +329,14 @@ class TexDocument:
 
 		#---prefixing happens live so we populate the subs here
 		self.subs_tex.update(**{'@fig:(%s+)'%self.labelchars:
-			self.figstyle%(r"\\ref{fig:\1}")})
+			lambda x:self.figstyle%(r"\ref{fig:%s}"%(underscore(x.group(1))))})
+			#---previously: but some texlive forbids underscores: self.figstyle%(r"\\ref{fig:\1}")})
 		self.subs_tex.update(**{'@sec:(%s+)'%self.labelchars:
-			self.secstyle%(r"\\ref{sec:\1}")})
+			lambda x:self.secstyle%(r"\ref{fig:%s}"%(underscore(x.group(1))))})
+			#---previously: self.secstyle%(r"\\ref{sec:\1}")})
 		self.subs_tex.update(**{'@eq:(%s+)'%self.labelchars:
-			self.eqnstyle%(r"\\ref{eq:\1}")})
+			lambda x:self.eqnstyle%(r"\ref{eq:%s}"%(underscore(x.group(1))))})
+			#---previously: self.eqnstyle%(r"\\ref{eq:\1}")})
 		self.subs_html.update(**{'@sec:(%s+)'%self.labelchars:
 			'<a href="#%s">%s</a>'%(r"\1",self.secstyle_html%(self.secpref+r"\1")),
 			'@(eq:%s+)'%self.labelchars:self.eqnstyle%r"$\eqref{\1}$"})
@@ -778,7 +783,7 @@ class TexDocument:
 					#---! mimic the path-making above and remove it because everything is now relative
 					#---! this is a hackish way to apply self.image_location
 					re.sub(os.path.join(os.getcwd(),path),
-						'fig_%s.pdf'%label,str(line)) for line in specific_parts[key]
+						'{fig_%s}.pdf'%label,str(line)) for line in specific_parts[key]
 					if self.tex_comments or not re.match('\s*%',str(line))]
 
 		final_text = ''
@@ -885,7 +890,7 @@ class TexDocument:
 		for key,val in mods.items():
 			if key == 'width': width = val
 			else: raise Exception('[ERROR] not sure how to handle figure mod: %s=%s'%(str(key),str(val)))
-		label = (r"\label{fig:%s}"%extracts[0] if extracts[0] else '')
+		label = (r"\label{fig:%s}"%underscore(extracts[0]) if extracts[0] else '')
 		text = (r"\begin{figure}[htbp]"+'\n'+r"\centering"+'\n'+
 			r"\includegraphics[width=%.2f\linewidth]{%s}"%(width,path)+
 			'\n'+r"\caption{%s%s}"%(caption,label)+'\n'+

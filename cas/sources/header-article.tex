@@ -20,8 +20,8 @@
 \setlistdepth{9}
 
 %---bibliography
-%\usepackage[numbers,sort&compress,square]{natbib}
-%\bibliographystyle{unsrt}
+\usepackage[numbers,sort&compress,square]{natbib}
+\bibliographystyle{unsrt}
 
 %---required for mathscr (math script)
 \usepackage{mathrsfs}
@@ -45,9 +45,8 @@
   \fi}
 \makeatother
 
-
 %---ocgcolorlinks prints links in black but shows them in color
-%\usepackage[unicode=true,ocgcolorlinks]{hyperref}
+\usepackage[unicode=true,ocgcolorlinks]{hyperref}
 
 %---newlines in tables
 \usepackage{tabularx}
@@ -56,15 +55,15 @@
 \newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
 
 %---hyperlinks
-%\hypersetup{
-%breaklinks=true,
-%bookmarks=true,
-%pdfauthor={@AUTHORS},
-%colorlinks=true,
-%citecolor=blue,
-%urlcolor=blue,
-%linkcolor=blue,
-%pdfborder={0 0 0}}
+\hypersetup{
+breaklinks=true,
+bookmarks=true,
+pdfauthor={@AUTHORS},
+colorlinks=true,
+citecolor=blue,
+urlcolor=blue,
+linkcolor=blue,
+pdfborder={0 0 0}}
 
 %---floating
 \usepackage{float}
@@ -96,27 +95,6 @@
 \setlength{\extrarowheight}{5pt}
 \setlength{\arraycolsep}{5pt}
 
-%---red text for undefined references
-\makeatletter
-\def\@setref#1#2#3{%
-  \ifx#1\relax
-   \protect\G@refundefinedtrue
-   %---could be more glaring: "\reset@font\bfseries\huge\textcolor{red}"
-   \nfss@text{\reset@font\textcolor{red}{\texttt{@#3}}}%
-   \@latex@warning{Reference `#3' on page \thepage \space undefined}%
-  \else
-   \expandafter#2#1\null
-  \fi}
-\makeatother
-
-%---show keys for missing references (see also: showkeys)
-\usepackage{etoolbox}
-\makeatletter
-\patchcmd{\@setref}{\bfseries ??}{[\texttt{#3}]}{}{%
-  \GenericWarning{}{Failed to patch \protect\@setref}}
-\patchcmd{\@citex}{\bfseries ?}{\texttt{\@citeb}}{}{%
-  \GenericWarning{}{Failed to patch \protect\@citex}}
-\makeatother
 
 %---END HEADER
 
