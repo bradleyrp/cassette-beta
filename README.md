@@ -7,7 +7,7 @@ CASSETTE
 Cassette is a small case for academic documents.
 More specifically, it is a lightweight code that makes it easy to 
 write, share, revise, and remember your academic documents.
-It is currently hosted on [github](https://github.com/bradleyrp/cassettee).
+It is currently hosted on [github](https://github.com/bradleyrp/cassette).
 
 Requires
 --------
