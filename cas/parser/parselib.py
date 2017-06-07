@@ -408,6 +408,7 @@ class TexDocument:
 					else: self.header_more(self.specs.spec(extras))
 
 				#---write and render
+				import pdb;pdb.set_trace()
 				self.write_relative(fn=self.name,dn=self.package_dir,nocompile=nocompile)
 				if not nocompile: self.render()
 
@@ -748,6 +749,7 @@ class TexDocument:
 		and fetch dependencies.
 		!LATER EXPAND THIS TO HANDLE BODY TEX FILES!
 		"""
+
 		#---convert images to PDF
 		image_spot = self.image_location if self.image_location else ''
 		for label,path in self.images:
@@ -755,7 +757,9 @@ class TexDocument:
 			if not os.path.isfile(os.path.join(dn,'fig_%s.pdf'%label)):
 				print("[STATUS] converting image to PDF: %s"%label)
 				proc = subprocess.Popen('convert %s fig_%s.pdf'%(image_source,label),shell=True,cwd=dn)
-				proc.communicate()
+				output,error = proc.communicate()
+				if proc.returncode!=0: 
+					raise Exception('convert failed. make sure imagemagick is installed')
 
 		#---copy the bibfile and refer to the local copy
 		if self.bibfile:
