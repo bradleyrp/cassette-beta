@@ -8,3 +8,5 @@
 /cas
 /.gitcas
 *.pyc
+#---ignoring itself here prevents gitignore from showing up in either .git or .gitcas
+/.gitignore
