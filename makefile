@@ -9,7 +9,7 @@ export TEXINPUTS := .:./cas/sources/extras/:$(TEXINPUTS)
 #---extra arguments passed along to downstream functions and scripts
 RUN_ARGS := $(wordlist 1,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 #---ensure that we filter out all valid target names from RUN_ARGS
-COMMENTS := $(filter-out all banner save add clean silo dispatch init dev clone,$(RUN_ARGS))
+COMMENTS := $(filter-out all dispatch indexer banner help clean list init dev silo clone save demo,$(RUN_ARGS))
 #---evaluate all superfluous make arguments to suppress warnings that contain these arguments
 $(eval $(COMMENTS):;@:)
 
@@ -92,8 +92,10 @@ init:
 	then mv .git .gitcas && cp cas/parser/gitignore-data ./.gitignore; fi
 
 #---talk to the casette git repository
+#---! note that this does not work with commit! so you have to do that manually
 dev:
-	@/bin/echo "[NOTE] to update the cassette repo, use: \"git --git-dir=.gitcas\""
+	@/bin/echo -n "[DEV] running 'git' on the cassette codes: "
+	git --git-dir=.gitcas $(filter-out dev,$(RUN_ARGS)) ${MAKEFLAGS}
 
 #---make a silo typically called "history" if absent
 #---also concurrently make a data repository
