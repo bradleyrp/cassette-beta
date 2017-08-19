@@ -1,4 +1,5 @@
 #---gitignore for the data repository for cassette
+/README.md
 /history
 /images
 /printed
